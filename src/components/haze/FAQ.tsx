@@ -50,7 +50,15 @@ const FAQS = [
   },
   {
     q: "How long does encoding take?",
-    a: "It depends on your CPU, the source length, and the output resolution. A 30-second 1080p clip on a modern laptop takes roughly 1–3 minutes with the Balanced preset. 4K encodes take 4–6× longer (a 30-second 4K clip can take 10–20 minutes). The Haze Method mode adds another 19× on top because of the internal frame multiplier — a 30-second Haze Method 1080p60 encode can take 15–30 minutes. Mobile devices will be slower, especially on iOS Safari.",
+    a: "Depends on the engine mode you pick. Patch only mode is near-instant (under 1 second) because it skips FFmpeg entirely and just rewrites the MP4 sample tables. Quick mode uses the ultrafast x264 preset — a 30-second 1080p clip takes 5–15 seconds. Classic mode uses the medium/slow presets — 1–3 minutes for the same clip. Haze Method mode is the slowest at 15–30 minutes for a 30-second 1080p60 clip because of the 19× internal frame multiplier. 4K encodes take 4–6× longer than 1080p in any mode. Mobile devices will be slower, especially on iOS Safari.",
+  },
+  {
+    q: "Why is this slower than hazemethod.xyz?",
+    a: "hazemethod.xyz processes videos server-side with hardware-accelerated encoding (NVENC on NVIDIA GPUs or QuickSync on Intel). This tool runs 100% in your browser via FFmpeg compiled to WebAssembly — no server, no GPU, just your CPU's software encoder. The trade-off: your video never leaves your device (total privacy), but encoding is 5–20× slower than a GPU-accelerated server. For fast results, use Patch only mode (instant) or Quick mode (5–15 seconds for a 30-second clip).",
+  },
+  {
+    q: "What's the difference between Quick, Haze Method, Classic, and Patch only?",
+    a: "Quick: ultrafast x264 preset, hard CBR, no faststart, encoder tag. 10× faster than Haze Method, same recipe otherwise. Best for everyday use. Haze Method: the exact hazemethod.xyz recipe — 19× internal frame multiplier via frame-hold duplication, slow x264 preset, hard CBR, no faststart. Matches the working sample but takes 15–30 minutes for a 30-second clip. Classic: standard VBR encode with +faststart, plus the stage-2 binary AST patcher to inflate declared fps up to 400 fps. Patch only: skips FFmpeg entirely. Just runs the binary AST patcher on your input MP4 to rewrite the declared fps. Near-instant but doesn't re-encode — your video bytes are preserved exactly.",
   },
   {
     q: "Does it work on iPhone?",

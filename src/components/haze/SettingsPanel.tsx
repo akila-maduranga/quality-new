@@ -77,87 +77,71 @@ export function SettingsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Engine mode toggle — Haze Method vs Classic */}
+      {/* Engine mode toggle — 4 modes */}
       <Section
         icon={<Flame className="h-4 w-4" />}
         title="Engine mode"
-        hint={isHaze ? "19× internal · hard CBR" : "Standard VBR"}
+        hint={
+          engineMode === "quick"
+            ? "ultrafast · hard CBR"
+            : engineMode === "haze"
+              ? "19× internal · hard CBR"
+              : engineMode === "patch_only"
+                ? "no re-encode · instant"
+                : "Standard VBR"
+        }
       >
         <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
+          {/* Quick — fast default */}
+          <EngineModeCard
+            active={engineMode === "quick"}
+            disabled={disabled}
+            onClick={() => onEngineModeChange("quick")}
+            icon={<Zap className="h-4 w-4" />}
+            title="Quick"
+            tagline="ultrafast · hard CBR · no faststart"
+            description="10× faster than Haze Method. Same hard-CBR + no-faststart recipe, but with ultrafast x264 preset and no frame multiplier."
+            pills={["ultrafast", "CBR", "no faststart", "tag"]}
+            recommended
+          />
+
+          {/* Haze Method — slow but exact match to working sample */}
+          <EngineModeCard
+            active={engineMode === "haze"}
             disabled={disabled}
             onClick={() => onEngineModeChange("haze")}
-            className={[
-              "relative text-left rounded-xl border p-3.5 transition-all overflow-hidden",
-              isHaze
-                ? "border-primary/80 bg-primary/10 shadow-[0_0_0_1px_oklch(0.72_0.22_310/0.35)]"
-                : "border-border/60 bg-white/[0.02] hover:border-border hover:bg-white/[0.04]",
-              disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
-            ].join(" ")}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Flame className={`h-4 w-4 ${isHaze ? "text-primary" : "text-muted-foreground"}`} />
-                <span className="text-sm font-semibold text-foreground">
-                  Haze Method
-                </span>
-              </div>
-              {isHaze && (
-                <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_oklch(0.72_0.22_310/0.8)]" />
-              )}
-            </div>
-            <p className="text-[11px] text-primary/90 font-medium mt-1">
-              {HAZE_FRAME_MULTIPLIER}× internal fps · hard CBR · no faststart
-            </p>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Matches the working hazemethod.xyz sample: 19× frame-hold
-              duplication, maxrate == bitrate, moov at end, custom encoder tag.
-            </p>
-            <div className="mt-2.5 flex flex-wrap gap-1">
-              <Pill>{HAZE_FRAME_MULTIPLIER}× mult</Pill>
-              <Pill>CBR</Pill>
-              <Pill>no faststart</Pill>
-              <Pill>tag</Pill>
-            </div>
-          </button>
+            icon={<Flame className="h-4 w-4" />}
+            title="Haze Method"
+            tagline={`${HAZE_FRAME_MULTIPLIER}× internal fps · hard CBR · no faststart`}
+            description="Matches the working hazemethod.xyz sample: 19× frame-hold duplication, maxrate == bitrate, moov at end, encoder tag. SLOW."
+            pills={[`${HAZE_FRAME_MULTIPLIER}× mult`, "CBR", "no faststart", "tag"]}
+            warning="~19× slower than Quick"
+          />
 
-          <button
-            type="button"
+          {/* Classic — VBR + faststart + patcher */}
+          <EngineModeCard
+            active={engineMode === "classic"}
             disabled={disabled}
             onClick={() => onEngineModeChange("classic")}
-            className={[
-              "relative text-left rounded-xl border p-3.5 transition-all",
-              !isHaze
-                ? "border-primary/80 bg-primary/10 shadow-[0_0_0_1px_oklch(0.72_0.22_310/0.35)]"
-                : "border-border/60 bg-white/[0.02] hover:border-border hover:bg-white/[0.04]",
-              disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
-            ].join(" ")}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Settings2 className={`h-4 w-4 ${!isHaze ? "text-primary" : "text-muted-foreground"}`} />
-                <span className="text-sm font-semibold text-foreground">
-                  Classic
-                </span>
-              </div>
-              {!isHaze && (
-                <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_oklch(0.72_0.22_310/0.8)]" />
-              )}
-            </div>
-            <p className="text-[11px] text-primary/90 font-medium mt-1">
-              Standard VBR · +faststart · +patcher
-            </p>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              libx264 encode at display fps, +faststart, stage-2 binary AST
-              patcher to inflate declared fps up to 400 fps.
-            </p>
-            <div className="mt-2.5 flex flex-wrap gap-1">
-              <Pill>VBR</Pill>
-              <Pill>+faststart</Pill>
-              <Pill>patcher</Pill>
-            </div>
-          </button>
+            icon={<Settings2 className="h-4 w-4" />}
+            title="Classic"
+            tagline="Standard VBR · +faststart · +patcher"
+            description="libx264 encode at display fps, +faststart, stage-2 binary AST patcher to inflate declared fps up to 400 fps."
+            pills={["VBR", "+faststart", "patcher"]}
+          />
+
+          {/* Patch only — skip FFmpeg entirely */}
+          <EngineModeCard
+            active={engineMode === "patch_only"}
+            disabled={disabled}
+            onClick={() => onEngineModeChange("patch_only")}
+            icon={<Cpu className="h-4 w-4" />}
+            title="Patch only"
+            tagline="No re-encode · instant · AST patcher"
+            description="Skip FFmpeg entirely. Just runs the binary AST patcher on your input MP4 to rewrite the declared fps. Near-instant (under 1 second)."
+            pills={["no FFmpeg", "instant", "AST only"]}
+            recommended
+          />
         </div>
       </Section>
       {/* Presets */}
@@ -304,9 +288,15 @@ export function SettingsPanel({
       <Section
         icon={<Cpu className="h-4 w-4" />}
         title="Haze Engine 2.0 patcher"
-        hint={isHaze ? "Disabled in Haze mode" : "Smart FPS targeting"}
+        hint={
+          engineMode === "haze"
+            ? "Disabled in Haze mode"
+            : engineMode === "patch_only"
+              ? "This IS the engine"
+              : "Smart FPS targeting"
+        }
       >
-        {isHaze ? (
+        {engineMode === "haze" ? (
           <div className="rounded-lg border border-border/60 bg-white/[0.02] p-3">
             <div className="flex items-start gap-2">
               <div className="mt-0.5 shrink-0 h-5 w-5 rounded grid place-items-center bg-primary/15 border border-primary/30">
@@ -486,6 +476,80 @@ function PatchButton({
       <span className={active ? "text-primary" : ""}>{icon}</span>
       <span className="text-xs font-medium">{label}</span>
       <span className="text-[9px] uppercase tracking-wider opacity-70">{sub}</span>
+    </button>
+  );
+}
+
+function EngineModeCard({
+  active,
+  disabled,
+  onClick,
+  icon,
+  title,
+  tagline,
+  description,
+  pills,
+  recommended,
+  warning,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  title: string;
+  tagline: string;
+  description: string;
+  pills: string[];
+  recommended?: boolean;
+  warning?: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={[
+        "relative text-left rounded-xl border p-3.5 transition-all overflow-hidden",
+        active
+          ? "border-primary/80 bg-primary/10 shadow-[0_0_0_1px_oklch(0.72_0.22_310/0.35)]"
+          : "border-border/60 bg-white/[0.02] hover:border-border hover:bg-white/[0.04]",
+        disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
+      ].join(" ")}
+    >
+      {recommended && (
+        <span className="absolute top-2 right-2 text-[8px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">
+          Recommended
+        </span>
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className={active ? "text-primary" : "text-muted-foreground"}>
+            {icon}
+          </span>
+          <span className="text-sm font-semibold text-foreground">
+            {title}
+          </span>
+        </div>
+        {active && (
+          <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_oklch(0.72_0.22_310/0.8)]" />
+        )}
+      </div>
+      <p className="text-[11px] text-primary/90 font-medium mt-1">
+        {tagline}
+      </p>
+      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+        {description}
+      </p>
+      {warning && (
+        <p className="text-[10px] text-yellow-400/90 mt-1.5 font-medium">
+          ⚠ {warning}
+        </p>
+      )}
+      <div className="mt-2.5 flex flex-wrap gap-1">
+        {pills.map((p) => (
+          <Pill key={p}>{p}</Pill>
+        ))}
+      </div>
     </button>
   );
 }

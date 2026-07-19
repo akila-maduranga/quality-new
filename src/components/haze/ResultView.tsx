@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, RefreshCw, CheckCircle2, ArrowRight, Cpu, Flame } from "lucide-react";
+import { Download, RefreshCw, CheckCircle2, ArrowRight, Cpu, Flame, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatBytes, diffBytes, formatDuration } from "@/lib/haze/format";
 import {
@@ -93,9 +93,20 @@ export function ResultView({
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-400" />
             <h3 className="text-lg font-semibold text-foreground">
-              {isHaze ? "Haze Method encoded" : "Optimized & ready"}
+              {engineMode === "patch_only"
+                ? "Patched & ready"
+                : engineMode === "quick"
+                  ? "Quick encoded"
+                  : isHaze
+                    ? "Haze Method encoded"
+                    : "Optimized & ready"}
             </h3>
-            {isHaze ? (
+            {engineMode === "patch_only" ? (
+              <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-gradient-to-br from-accent to-primary text-white px-2 py-0.5 rounded-full">
+                <Cpu className="h-3 w-3" />
+                Patch only
+              </span>
+            ) : isHaze ? (
               <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-gradient-to-br from-primary to-accent text-white px-2 py-0.5 rounded-full">
                 <Flame className="h-3 w-3" />
                 Haze {HAZE_FRAME_MULTIPLIER}×
@@ -109,7 +120,29 @@ export function ResultView({
           </div>
 
           <p className="text-sm text-muted-foreground -mt-2">
-            {isHaze ? (
+            {engineMode === "patch_only" ? (
+              <>
+                {""}Patch-only mode — no re-encoding. The binary AST patcher
+                rewrote the MP4 sample tables to declare{" "}
+                <span className="text-foreground font-medium">{fps} fps</span>{" "}
+                while preserving the original video bytes. Near-instant.
+              </>
+            ) : engineMode === "quick" ? (
+              <>
+                Quick encode with{" "}
+                <span className="text-foreground font-medium">{preset.name}</span>{" "}
+                — ultrafast x264 preset, hard CBR at{" "}
+                <span className="text-foreground font-medium">{preset.videoBitrate}</span>,
+                no +faststart, encoder tag embedded. 10× faster than Haze Method.
+                {patchMode !== "off" && (
+                  <>
+                    {" "}Stage-2 patcher applied (
+                    {patchMode === "inject" ? "fake sample injection" : "metadata patch"}
+                    {strategy && strategy.multiplier > 1 ? `, ${strategy.multiplier}×` : ""}).
+                  </>
+                )}
+              </>
+            ) : isHaze ? (
               <>
                 Encoded with the{" "}
                 <span className="text-foreground font-medium">Haze Method</span>{" "}
@@ -159,28 +192,36 @@ export function ResultView({
             />
           </div>
 
-          {/* Haze Method stats (when in Haze mode) */}
-          {isHaze && (
+          {/* Haze Method / Quick mode traits */}
+          {(isHaze || engineMode === "quick") && (
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
               <div className="flex items-center gap-1.5 mb-2">
-                <Flame className="h-3.5 w-3.5 text-primary" />
+                {isHaze ? (
+                  <Flame className="h-3.5 w-3.5 text-primary" />
+                ) : (
+                  <Zap className="h-3.5 w-3.5 text-primary" />
+                )}
                 <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">
-                  Haze Method traits
+                  {isHaze ? "Haze Method traits" : "Quick mode traits"}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-                <PatchStat
-                  label="Frame multiplier"
-                  value={`${HAZE_FRAME_MULTIPLIER}×`}
-                />
+                {isHaze && (
+                  <PatchStat
+                    label="Frame multiplier"
+                    value={`${HAZE_FRAME_MULTIPLIER}×`}
+                  />
+                )}
                 <PatchStat
                   label="Display FPS"
                   value={`${fps} fps`}
                 />
-                <PatchStat
-                  label="Internal FPS"
-                  value={`${internalFps} fps`}
-                />
+                {isHaze && (
+                  <PatchStat
+                    label="Internal FPS"
+                    value={`${internalFps} fps`}
+                  />
+                )}
                 <PatchStat
                   label="Bitrate mode"
                   value="Hard CBR"
@@ -192,6 +233,10 @@ export function ResultView({
                 <PatchStat
                   label="Bufsize"
                   value="none"
+                />
+                <PatchStat
+                  label="x264 preset"
+                  value={isHaze ? preset.x264Preset : "ultrafast"}
                 />
                 <PatchStat
                   label="moov atom"
@@ -254,48 +299,86 @@ export function ResultView({
           {/* Spec sheet */}
           <div className="rounded-lg border border-border/60 bg-white/[0.02] p-3">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-              {isHaze ? "Haze Method spec" : "Encoding spec"}
+              {engineMode === "patch_only"
+                ? "Patch-only spec"
+                : isHaze
+                  ? "Haze Method spec"
+                  : engineMode === "quick"
+                    ? "Quick mode spec"
+                    : "Encoding spec"}
             </p>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
-              <SpecRow k="Codec" v="H.264 (libx264)" />
-              <SpecRow k="Profile" v={`${preset.profile} @ L${h264Level}`} />
-              <SpecRow k="Resolution" v={`${target.width}×${target.height}`} />
+              {engineMode !== "patch_only" && (
+                <>
+                  <SpecRow k="Codec" v="H.264 (libx264)" />
+                  <SpecRow k="Profile" v={`${preset.profile} @ L${h264Level}`} />
+                  <SpecRow k="Resolution" v={`${target.width}×${target.height}`} />
+                </>
+              )}
+              {engineMode === "patch_only" && (
+                <>
+                  <SpecRow k="Mode" v="Patch only (no re-encode)" />
+                  <SpecRow k="Declared FPS" v={`${patch?.stats.declaredFps ?? fps} fps`} />
+                  <SpecRow k="Input size" v={formatBytes(inputSize)} />
+                  <SpecRow k="Output size" v={formatBytes(resultSize)} />
+                </>
+              )}
               <SpecRow
                 k="FPS"
                 v={
-                  isHaze
-                    ? `${fps} display / ${internalFps} internal`
-                    : `${patch && patch.mode !== "off" ? patch.stats.declaredFps : fps} fps`
+                  engineMode === "patch_only"
+                    ? `${patch?.stats.declaredFps ?? fps} fps (declared)`
+                    : isHaze
+                      ? `${fps} display / ${internalFps} internal`
+                      : `${patch && patch.mode !== "off" ? patch.stats.declaredFps : fps} fps`
                 }
               />
-              <SpecRow k="Pixel format" v="yuv420p" />
-              <SpecRow k="Color" v="bt709 / bt709 / bt709" />
-              <SpecRow k="Bitrate" v={preset.videoBitrate} />
-              <SpecRow
-                k="Maxrate"
-                v={isHaze ? `${preset.videoBitrate} (== b:v)` : preset.maxBitrate}
-              />
-              <SpecRow k="Audio" v={audio ? `AAC ${preset.audioBitrate}` : "None"} />
+              {engineMode !== "patch_only" && (
+                <>
+                  <SpecRow k="Pixel format" v="yuv420p" />
+                  <SpecRow k="Color" v="bt709 / bt709 / bt709" />
+                  <SpecRow k="Bitrate" v={preset.videoBitrate} />
+                  <SpecRow
+                    k="Maxrate"
+                    v={
+                      isHaze || engineMode === "quick"
+                        ? `${preset.videoBitrate} (== b:v)`
+                        : preset.maxBitrate
+                    }
+                  />
+                  <SpecRow k="Audio" v={audio ? `AAC ${preset.audioBitrate}` : "None"} />
+                </>
+              )}
               <SpecRow
                 k="Container"
                 v={
-                  isHaze
-                    ? "MP4 (no faststart)"
-                    : `MP4 ${patchMode !== "off" ? "+ AST" : "+faststart"}`
+                  engineMode === "patch_only"
+                    ? `MP4 ${patchMode !== "off" ? "+ AST patch" : "(unchanged)"}`
+                    : isHaze || engineMode === "quick"
+                      ? "MP4 (no faststart)"
+                      : `MP4 ${patchMode !== "off" ? "+ AST" : "+faststart"}`
                 }
               />
-              <SpecRow
-                k="GOP"
-                v={
-                  isHaze
-                    ? `${internalFps * 2} frames (2s @ internal)`
-                    : `${Math.min(fps, 60) * 2} frames`
-                }
-              />
-              <SpecRow
-                k="moov position"
-                v={isHaze ? "END (mdat first)" : "START (+faststart)"}
-              />
+              {engineMode !== "patch_only" && (
+                <>
+                  <SpecRow
+                    k="GOP"
+                    v={
+                      isHaze
+                        ? `${internalFps * 2} frames (2s @ internal)`
+                        : `${Math.min(fps, 60) * 2} frames`
+                    }
+                  />
+                  <SpecRow
+                    k="moov position"
+                    v={
+                      isHaze || engineMode === "quick"
+                        ? "END (mdat first)"
+                        : "START (+faststart)"
+                    }
+                  />
+                </>
+              )}
             </dl>
           </div>
 
